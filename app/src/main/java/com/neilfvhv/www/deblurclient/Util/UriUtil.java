@@ -1,6 +1,5 @@
 package com.neilfvhv.www.deblurclient.Util;
 
-import android.content.ContentUris;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -51,10 +50,11 @@ public class UriUtil {
 
                 } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
 
-                    Uri contentUri = ContentUris.withAppendedId(
-                            Uri.parse("content://downloads/public_downloads"), Long.valueOf(docId));
+//                    Uri contentUri = ContentUris.withAppendedId(
+//                            Uri.parse("content://downloads/public_downloads"), Long.valueOf(docId));
 
-                    path = getPathFromUri(context, contentUri, data,null);
+//                    path = getPathFromUri(context, contentUri, data,null);
+                    path = docId.split(":")[1];
                 }
             } else if ("content".equalsIgnoreCase(uri.getScheme())) {
                 path = getPathFromUri(context, uri, data, null);
