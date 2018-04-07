@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.content.FileProvider;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -38,15 +39,25 @@ import okhttp3.Response;
 
 public class MainActivity extends BaseActivity {
 
+    /**
+     * TODO:
+     *      1. Further UI Improvement
+     *      2. Logical Flow Optimization
+     */
+
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private ImageView originalImage;
     private ImageView processedImage;
     private Button submitButton;
+    private Button saveButton;
     private ImageButton chooseButton;
     private ImageButton takeButton;
     private DelayedProgressDialog dialog;
-    private Uri mUri;
+
+    private Uri mUri = null;
+    private long mTimestamp = 0;
+    private Bitmap mBitmap = null;
 
     private PermissionUtil.RequestResult requestResult = new PermissionUtil.RequestResult() {
         @Override
@@ -90,11 +101,33 @@ public class MainActivity extends BaseActivity {
                     // upload image
                     uploadImage(path);
                 } else {
-                    Toast.makeText(
-                            getApplicationContext(), "no image", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(),
+                            "no image to upload", Toast.LENGTH_LONG).show();
                 }
             }
         });
+
+        // initialize Button - save image to mobile phone
+        saveButton = findViewById(R.id.save);
+        saveButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (processedImage.getDrawable() != null) {
+                    // get image name with timestamp
+                    String path = pictureRootPath + "/DEBLUR_" +
+                            System.currentTimeMillis() + ".jpeg";
+                    // save bitmap to image file
+                    saveImage(mBitmap, path);
+
+                    saveButton.setVisibility(View.INVISIBLE);
+
+                } else {
+                    Toast.makeText(getApplicationContext(),
+                            "no image to save", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        saveButton.setVisibility(View.INVISIBLE);
 
         // initialize Button - choose picture from the mobile phone
         chooseButton = findViewById(R.id.choose);
@@ -116,12 +149,16 @@ public class MainActivity extends BaseActivity {
         takeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                // get current time for name for picture taken with camera
+                mTimestamp = System.currentTimeMillis();
+
                 Intent intent = new Intent();
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 intent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, FileProvider.getUriForFile(
                         MainActivity.this, "com.neilfvhv.www.deblurclient",
-                        new File(pictureRootPath + "/temp.png")));
+                        new File(pictureRootPath + "/IMG_" + mTimestamp + ".jpeg")));
+
                 startActivityForResult(intent, TAKE_PICTURE);
 
                 Toast.makeText(
@@ -141,15 +178,12 @@ public class MainActivity extends BaseActivity {
 
     /**
      * Upload Image to the Server
+     *
      * @param path the path for the image on the mobile phone
      */
     private void uploadImage(String path) {
-        // get image file
-        File file = new File(path);
-        if (!file.exists()) {
-            Toast.makeText(this, "image not exists", Toast.LENGTH_LONG).show();
-            return;
-        }
+        // compress image file
+        File file = compressImage(path, 50, 10);
 
         // remove the last processed image
         processedImage.setImageDrawable(null);
@@ -158,9 +192,11 @@ public class MainActivity extends BaseActivity {
         RequestBody fileBody = RequestBody.create(MediaType.parse("application/octet-stream"), file);
         RequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("original_image", file.getName(), fileBody)
+                .addFormDataPart("username", "neilfvhv")
+                .addFormDataPart("password", "123456")
+                .addFormDataPart("image", file.getName(), fileBody)
                 .build();
-        Request request = new Request.Builder()
+        final Request request = new Request.Builder()
                 .url(UPLOAD_URL)
                 .post(requestBody)
                 .build();
@@ -168,9 +204,9 @@ public class MainActivity extends BaseActivity {
         // build OkHttp3 client
         final okhttp3.OkHttpClient.Builder httpBuilder = new OkHttpClient.Builder();
         OkHttpClient okHttpClient = httpBuilder
-                .connectTimeout(5, TimeUnit.SECONDS) // connect timeout - 5s
-                .readTimeout(10, TimeUnit.MINUTES)  // read timeout - 10 min
-                .writeTimeout(10, TimeUnit.MINUTES) // write timeout - 10 min
+                .connectTimeout(5, TimeUnit.SECONDS) // connect timeout - 5 seconds
+                .readTimeout(5, TimeUnit.MINUTES)  // read timeout - 5 minutes
+                .writeTimeout(5, TimeUnit.MINUTES) // write timeout - 5 minutes
                 .build();
 
         // communicate with the server
@@ -178,15 +214,16 @@ public class MainActivity extends BaseActivity {
 
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                e.printStackTrace();
+                final String failure = e.toString();
+                // back to UI thread
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         // cancel the progress dialog
                         dialog.cancel();
                         Toast.makeText(MainActivity.this,
-                                "upload image fail", Toast.LENGTH_LONG
-                        ).show();
+                                "upload image fail", Toast.LENGTH_LONG).show();
+                        Log.e(TAG, failure);
                     }
                 });
             }
@@ -212,15 +249,18 @@ public class MainActivity extends BaseActivity {
                         // decode bitmap from byte array stream
                         BitmapFactory.Options ops = new BitmapFactory.Options();
                         ops.inJustDecodeBounds = false;
-                        final Bitmap bitmap = BitmapFactory.decodeStream(decodeIs, null, ops);
+                        mBitmap = BitmapFactory.decodeStream(decodeIs, null, ops);
 
                         // back to UI thread
                         runOnUiThread(new Runnable() {
                             public void run() {
                                 // set processed image
-                                processedImage.setImageBitmap(bitmap);
+                                processedImage.setImageBitmap(mBitmap);
                                 // cancel the progress dialog
                                 dialog.cancel();
+
+                                saveButton.setVisibility(View.VISIBLE);
+
                                 Toast.makeText(MainActivity.this,
                                         "process image success", Toast.LENGTH_SHORT
                                 ).show();
@@ -229,6 +269,17 @@ public class MainActivity extends BaseActivity {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
+                } else if (response.code() == 401) { // no authority to process image
+                    // back to UI thread
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            // cancel the progress dialog
+                            dialog.cancel();
+                            Toast.makeText(MainActivity.this,
+                                    "no authority", Toast.LENGTH_LONG
+                            ).show();
+                        }
+                    });
                 } else if (response.code() == 500) { // server internal error
                     // back to UI thread
                     runOnUiThread(new Runnable() {
@@ -240,7 +291,7 @@ public class MainActivity extends BaseActivity {
                             ).show();
                         }
                     });
-                } else {
+                } else { // unknown error
                     // back to UI thread
                     runOnUiThread(new Runnable() {
                         public void run() {
@@ -263,7 +314,9 @@ public class MainActivity extends BaseActivity {
             if (requestCode == CHOOSE_PICTURE) {
                 mUri = data.getData();
             } else if (requestCode == TAKE_PICTURE) {
-                mUri = Uri.parse(pictureRootPath + "/temp.png");
+                String path = pictureRootPath + "/IMG_" + mTimestamp + ".jpeg";
+                saveImageToGallery(path);
+                mUri = Uri.parse(path);
             }
             originalImage.setImageURI(mUri);
         }

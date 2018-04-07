@@ -36,7 +36,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="80dp"
+        android:layout_marginTop="64dp"
         android:text="@string/submit"
         app:layout_constraintEnd_toStartOf="@+id/take"
         app:layout_constraintStart_toEndOf="@+id/choose"
@@ -46,26 +46,40 @@
         android:id="@+id/choose"
         android:layout_width="80dp"
         android:layout_height="80dp"
+        android:layout_marginLeft="28dp"
         android:layout_marginStart="28dp"
-        android:layout_marginTop="64dp"
+        android:layout_marginTop="84dp"
         android:background="@drawable/file"
+        android:contentDescription="@string/app_name"
         android:text="@string/choose"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/processed"
-        android:layout_marginLeft="28dp"
-        android:contentDescription="@string/app_name" />
+        app:layout_constraintTop_toBottomOf="@+id/processed" />
 
     <ImageButton
         android:id="@+id/take"
         android:layout_width="80dp"
         android:layout_height="80dp"
         android:layout_marginEnd="28dp"
-        android:layout_marginTop="64dp"
+        android:layout_marginRight="28dp"
+        android:layout_marginTop="84dp"
         android:background="@drawable/camera"
+        android:contentDescription="@string/app_name"
         android:text="@string/take"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/processed"
-        android:layout_marginRight="28dp"
-        android:contentDescription="@string/app_name" />
+        app:layout_constraintTop_toBottomOf="@+id/processed" />
+
+    <Button
+        android:id="@+id/save"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="20dp"
+        android:text="@string/save"
+        app:layout_constraintEnd_toStartOf="@+id/take"
+        app:layout_constraintStart_toEndOf="@+id/choose"
+        app:layout_constraintTop_toBottomOf="@+id/submit" />
 
 </android.support.constraint.ConstraintLayout>
